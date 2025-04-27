@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# 添加父级目录到路径，以便可以导入 app 包中的模块
+# Add parent directory to path to import modules from the app package
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -86,7 +86,7 @@ async def get_tweets(username: str = None, user_id: str = None, count: int = 10)
     """Get the latest tweets from a Twitter user.
 
     Use this tool when you want to see someone's tweets. You must provide either username or user_id.
-    当你回复用户的时候，如果涉及到参考的推文内容， 把参考的推文id放到后面， 格式如：最近，内容 [tweet_id]
+    When replying to a user, if referencing tweet content, include the tweet ID at the end, formatted as: Recently, content [tweet_id]
     
     Args:
         username: Twitter username (without @ symbol)
@@ -430,14 +430,14 @@ async def get_meme_data(address: str) -> Dict[str, Any]:
     """Get token data from FourMeme API
 
     Use this tool to get token data from FourMeme API by token address
-    返回的数据中name为Token Name， ShortName为Token Symbol. 返回格式：TokenName, Symbol
+    The returned data contains name as Token Name and ShortName as Token Symbol. The return format is: TokenName, Symbol
     """
     logger.info(f"Starting get_meme_data for address: {address}")
     try:
-        # 获取基本token数据
+        # Get basic token data
         token_data = await get_four_meme_data(address)
         
-        # 确保返回格式符合 MCP 工具的要求
+        # Ensure the return format meets the requirements of the MCP tool
         if token_data.get("code") == 0:
             return {
                 "success": True,

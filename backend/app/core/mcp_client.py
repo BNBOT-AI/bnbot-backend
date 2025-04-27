@@ -31,9 +31,9 @@ class MCPClient:
             
         self.openrouter_url = "https://openrouter.ai/api/v1/chat/completions"
         self.model = "openai/gpt-4o-2024-11-20"  # Default model, can be changed
-        self.tools_cache = []  # 初始化为空列表，而不是None
+        self.tools_cache = []  # Initialize as an empty list instead of None
         self.initialized = False
-        self._initializing = False  # 添加标志防止递归
+        self._initializing = False  # Add a flag to prevent recursion
 
     async def initialize(self, server_script_path: str = None):
         """Initialize the MCP client with the server"""
@@ -45,34 +45,34 @@ class MCPClient:
             logger.warning("MCP client initialization already in progress")
             return
             
-        self._initializing = True  # 设置标志防止递归
+        self._initializing = True  # Set flag to prevent recursion
         
         try:
-            # 设置默认服务器脚本路径
+            # Set default server script path
             if not server_script_path:
                 server_script_path = os.getenv("MCP_SERVER_PATH")
                 
-            # 如果仍然没有路径，使用内置的服务器脚本路径
+            # If still no path, use the built-in server script path
             if not server_script_path:
-                # 获取当前文件所在目录
+                # Get the current directory of the file
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 server_script_path = os.path.join(current_dir, "mcp_server.py")
                 logger.info(f"Using default server script path: {server_script_path}")
                 
-                # 确保文件存在
+                # Ensure the file exists
                 if not os.path.exists(server_script_path):
                     logger.warning(f"Default server script not found at {server_script_path}")
             
             logger.info(f"Initializing MCP client with server: {server_script_path}")
             await self.connect_to_server(server_script_path)
-            # 提前设置为 True，避免 connect_to_server 中的 get_available_tools 调用导致递归
+            # Set to True in advance to avoid recursive calls in get_available_tools in connect_to_server
             self.initialized = True
             logger.info("MCP client initialization complete")
         except Exception as e:
             logger.error(f"MCP client initialization error: {str(e)}", exc_info=True)
             raise
         finally:
-            self._initializing = False  # 重置标志
+            self._initializing = False  # Reset flag
 
     async def connect_to_server(self, server_script_path: str):
         """Connect to an MCP server"""
@@ -98,42 +98,42 @@ class MCPClient:
             await self.session.initialize()
             logger.info("MCP server connection initialized")
             
-            # 设置初始化标志为True，这样get_available_tools才能正常工作
-            # 注意：这里不设置self.initialized，因为在initialize方法中会设置
-            # 只是临时告诉get_available_tools可以请求工具列表
+            # Set initialization flag to True so that get_available_tools can work properly
+            # Note: Do not set self.initialized here, as it will be set in the initialize method
+            # Just temporarily inform get_available_tools that it can request the tool list
             
-            # 尝试预加载工具缓存
+            # Attempt to preload tool cache
             try:
-                # 这里我们强制清空缓存，确保get_available_tools会从服务器获取工具
+                # Here we force clear the cache to ensure get_available_tools fetches tools from the server
                 self.tools_cache = []
                 
-                # 使用get_available_tools获取并缓存工具
+                # Use get_available_tools to fetch and cache tools
                 tools = await self.get_available_tools()
                 logger.info(f"Preloaded {len(tools)} tools during initialization")
             except Exception as tools_error:
                 logger.error(f"Error preloading tools: {str(tools_error)}")
-                # 不要因为工具获取失败而中断整个初始化过程
+                # Do not interrupt the entire initialization process due to tool fetching failure
                 self.tools_cache = []
         except Exception as e:
             logger.error(f"Error connecting to MCP server: {str(e)}", exc_info=True)
             raise
 
     async def get_available_tools(self) -> List[Dict[str, Any]]:
-        """获取适用于OpenRouter/OpenAI API的工具列表"""
+        """Get the list of tools available for OpenRouter/OpenAI API"""
         logger.info("Getting available tools from server")
         
         if not self.initialized:
-            # 不要在这里尝试初始化，因为这会导致递归
+            # Do not attempt to initialize here, as it would cause recursion
             logger.warning("MCP client not initialized, returning empty tools list")
             return []
             
-        # 如果工具缓存为空，从服务器获取并缓存
+        # If the tool cache is empty, fetch and cache from the server
         if not self.tools_cache:
             try:
                 response = await self.session.list_tools()
                 self.tools_cache = []
                 
-                # 直接将MCP工具转换为API格式
+                # Directly convert MCP tools to API format
                 for tool in response.tools:
                     tool_def = {
                         "type": "function",
@@ -148,7 +148,7 @@ class MCPClient:
                         }
                     }
 
-                    # 处理参数
+                    # Process parameters
                     if hasattr(tool, 'inputSchema') and tool.inputSchema:
                         properties = tool.inputSchema.get('properties', {})
                         required = tool.inputSchema.get('required', [])
@@ -207,7 +207,7 @@ class MCPClient:
         
         try:
             if not stream:
-                # 原来的非流式请求模式
+                # Original non-streaming request mode
                 response = requests.post(self.openrouter_url, headers=headers, json=payload)
                 
                 if response.status_code != 200:
@@ -216,7 +216,7 @@ class MCPClient:
                     
                 return response.json()
             else:
-                # 流式请求模式
+                # Streaming request mode
                 async def stream_response():
                     async with httpx.AsyncClient() as client:
                         async with client.stream("POST", self.openrouter_url, 
@@ -231,9 +231,9 @@ class MCPClient:
                             async for chunk in response.aiter_bytes():
                                 buffer += chunk.decode('utf-8')
                                 
-                                # 处理SSE格式的数据
+                                # Process SSE formatted data
                                 lines = buffer.split('\n\n')
-                                buffer = lines.pop()  # 保留可能不完整的最后一行
+                                buffer = lines.pop()  # Keep the possibly incomplete last line
                                 
                                 for line in lines:
                                     if line.startswith('data: '):
@@ -247,14 +247,14 @@ class MCPClient:
                                             if 'choices' in parsed and len(parsed['choices']) > 0:
                                                 delta = parsed['choices'][0].get('delta', {})
                                                 
-                                                # 处理文本内容
+                                                # Process text content
                                                 if 'content' in delta and delta['content']:
                                                     yield json.dumps({
                                                         "type": "content", 
                                                         "content": delta['content']
                                                     })
                                                     
-                                                # 处理工具调用
+                                                # Process tool calls
                                                 if 'tool_calls' in delta:
                                                     yield json.dumps({
                                                         "type": "tool_call_part",
@@ -273,7 +273,7 @@ class MCPClient:
         """Call a specific tool"""
         logger.info(f"Calling tool: {tool_name} with arguments: {arguments}")
         
-        # 检查是否初始化，如果未初始化，尝试初始化
+        # Check if initialized, if not, attempt to initialize
         if not self.initialized:
             logger.warning("MCP client not initialized, attempting to initialize")
             try:
@@ -297,13 +297,13 @@ class MCPClient:
         except Exception as e:
             logger.error(f"Error calling tool: {str(e)}", exc_info=True)
             
-            # 尝试重连一次
+            # Attempt to reconnect once
             try:
                 logger.info("Attempting to reconnect MCP client after error")
                 await self.cleanup()
                 await self.initialize()
                 
-                # 重试工具调用
+                # Retry tool call
                 result = await self.session.call_tool(tool_name, arguments)
                 return {
                     "success": True,
@@ -333,7 +333,7 @@ class MCPClient:
                 }
             ]
 
-            # 获取API格式工具列表 - 直接使用，不需要再次转换
+            # Get API format tool list - use directly, no need to convert again
             available_tools = await self.get_available_tools()
 
             # Call OpenRouter API
@@ -454,7 +454,7 @@ class MCPClient:
                 yield json.dumps({"content": f"Error: MCP client not initialized: {str(e)}"})
                 return
         
-        # 构建查询字符串
+        # Build query string
         query_parts = []
         for msg in messages:
             role = msg.get("role", "user")
@@ -467,14 +467,14 @@ class MCPClient:
             response = await self.process_query(query)
             
             if stream:
-                # 对于流式传输，分块返回
+                # For streaming, return in chunks
                 chunks = response.split("\n")
                 for i, chunk in enumerate(chunks):
                     yield json.dumps({"content": chunk})
-                    if i < len(chunks) - 1:  # 不要在最后一个块后添加延迟
-                        await asyncio.sleep(0.1)  # 小延迟以模拟流式传输
+                    if i < len(chunks) - 1:  # Do not add delay after the last chunk
+                        await asyncio.sleep(0.1)  # Small delay to simulate streaming
             else:
-                # 对于非流式响应，一次性返回完整响应
+                # For non-streaming response, return complete response at once
                 yield json.dumps({"content": response})
         except Exception as e:
             logger.error(f"Error in chat: {str(e)}", exc_info=True)
@@ -494,53 +494,53 @@ class MCPClient:
         return await self.process_query(query)
 
     async def stream_process_query(self, messages: List[Dict[str, str]] = None):
-        """流式处理查询，实时返回工具调用信息和结果
+        """Stream process query, returning tool call information and results in real-time
         
-        使用完整的messages列表进行查询
+        Use the complete messages list for the query
         
         Args:
             messages: List of message objects with role and content, including system messages
             
         Yields:
-            JSON字符串，包含以下类型的事件：
-            - content: LLM生成的文本片段
-            - tool_call: 当LLM决定调用某个工具时
-            - tool_result: 当工具调用完成并返回结果时
-            - error: 发生错误时
-            - done: 流处理完成
+            JSON string containing the following types of events:
+            - content: Text fragments generated by LLM
+            - tool_call: When LLM decides to call a tool
+            - tool_result: When a tool call is completed and returns a result
+            - error: When an error occurs
+            - done: When stream processing is complete
         """
         if not self.initialized:
             try:
                 await self.initialize()
             except Exception as e:
-                yield json.dumps({"type": "error", "content": f"初始化失败: {str(e)}"})
+                yield json.dumps({"type": "error", "content": f"Initialization failed: {str(e)}"})
                 return
         
         try:
-            # 获取API格式工具列表
+            # Get API format tool list
             available_tools = await self.get_available_tools()
             
-            # 收集工具调用信息
+            # Collect tool call information
             collected_tool_calls = []
             
-            # 使用流式API获取初始响应
+            # Use streaming API to get initial response
             async for chunk in await self.call_openrouter(messages, available_tools, stream=True):
                 try:
                     data = json.loads(chunk)
                     chunk_type = data.get("type", "")
                     
-                    # 直接转发内容类型的块
+                    # Directly forward content type chunks
                     if chunk_type == "content":
                         yield chunk
                     
-                    # 处理工具调用部分
+                    # Process tool call parts
                     elif chunk_type == "tool_call_part":
                         tool_call_deltas = data.get("delta", [])
                         
                         for delta in tool_call_deltas:
                             index = delta.get("index", 0)
                             
-                            # 确保collected_tool_calls有足够的位置
+                            # Ensure collected_tool_calls has enough positions
                             while len(collected_tool_calls) <= index:
                                 collected_tool_calls.append({
                                     "id": None,
@@ -548,11 +548,11 @@ class MCPClient:
                                     "function": {"name": "", "arguments": ""}
                                 })
                             
-                            # 更新ID
+                            # Update ID
                             if "id" in delta:
                                 collected_tool_calls[index]["id"] = delta["id"]
                             
-                            # 更新函数信息
+                            # Update function information
                             if "function" in delta:
                                 if "name" in delta["function"]:
                                     collected_tool_calls[index]["function"]["name"] += delta["function"]["name"]
@@ -560,33 +560,33 @@ class MCPClient:
                                 if "arguments" in delta["function"]:
                                     collected_tool_calls[index]["function"]["arguments"] += delta["function"]["arguments"]
                             
-                            # 检查是否有完整的工具调用
+                            # Check if there is a complete tool call
                             if (collected_tool_calls[index]["id"] and 
                                 collected_tool_calls[index]["function"]["name"] and 
                                 collected_tool_calls[index]["function"]["arguments"]):
                                 
-                                # 尝试解析参数 - 添加验证完整性的逻辑
+                                # Attempt to parse arguments - add integrity validation logic
                                 arguments_str = collected_tool_calls[index]["function"]["arguments"]
                                 try:
-                                    # 检查JSON字符串是否完整
+                                    # Check if JSON string is complete
                                     if arguments_str.strip().endswith("}"):
                                         try:
                                             tool_call = collected_tool_calls[index]
                                             tool_name = tool_call["function"]["name"]
                                             tool_args = json.loads(arguments_str)
                                             
-                                            # 通知将要调用工具
+                                            # Notify that a tool will be called
                                             yield json.dumps({
                                                 "type": "tool_call",
                                                 "tool_name": tool_name,
                                                 "arguments": tool_args
                                             })
                                             
-                                            # 执行工具调用
+                                            # Execute tool call
                                             logger.info(f"Calling tool: {tool_name} with arguments: {tool_args}")
                                             result = await self.call_tool(tool_name, tool_args)
                                         
-                                            # 返回工具调用结果
+                                            # Return tool call result
                                             result_data = result.get("data")
                                             serializable_result = self._ensure_serializable(result_data)
                                             yield json.dumps({
@@ -595,10 +595,10 @@ class MCPClient:
                                                 "result": serializable_result
                                             })
                                             
-                                            # 处理工具调用后的响应
+                                            # Process response after tool call
                                             serialized_content = json.dumps(serializable_result) if isinstance(serializable_result, (dict, list)) else str(serializable_result)
                                             
-                                            # 构建包含工具结果的新消息
+                                            # Build new message containing tool result
                                             follow_up_messages = messages.copy()
                                             follow_up_messages.append({
                                                 "role": "assistant",
@@ -612,38 +612,38 @@ class MCPClient:
                                                 "content": serialized_content
                                             })
                                             
-                                            # 获取后续回复
+                                            # Get follow-up response
                                             async for follow_up_chunk in await self.call_openrouter(follow_up_messages, available_tools, stream=True):
                                                 yield follow_up_chunk
                                             
-                                            # 标记该工具调用已处理，清空内容防止重复处理
+                                            # Mark this tool call as processed, clear content to prevent reprocessing
                                             collected_tool_calls[index] = {
                                                 "id": None, 
                                                 "type": "function",
                                                 "function": {"name": "", "arguments": ""}
                                             }
                                         except json.JSONDecodeError:
-                                            logger.warning(f"无法解析工具参数: {arguments_str}")
+                                            logger.warning(f"Failed to parse tool arguments: {arguments_str}")
                                         except Exception as tool_error:
-                                            logger.error(f"工具调用错误: {str(tool_error)}")
+                                            logger.error(f"Tool call error: {str(tool_error)}")
                                             yield json.dumps({
                                                 "type": "error",
-                                                "content": f"工具调用错误: {str(tool_error)}"
+                                                "content": f"Tool call error: {str(tool_error)}"
                                             })
                                 except json.JSONDecodeError:
-                                    logger.warning(f"无法解析工具参数: {arguments_str}")
+                                    logger.warning(f"Failed to parse tool arguments: {arguments_str}")
                                 except Exception as tool_error:
-                                    logger.error(f"工具调用错误: {str(tool_error)}")
+                                    logger.error(f"Tool call error: {str(tool_error)}")
                                     yield json.dumps({
                                         "type": "error",
-                                        "content": f"工具调用错误: {str(tool_error)}"
+                                        "content": f"Tool call error: {str(tool_error)}"
                                     })
                     
-                    # 处理其他类型的块
+                    # Process other types of chunks
                     elif chunk_type == "error":
                         yield chunk
                     elif chunk_type == "done":
-                        # 检查是否有未完成的工具调用
+                        # Check if there are any incomplete tool calls
                         any_incomplete = False
                         for call in collected_tool_calls:
                             if call["id"] or call["function"]["name"] or call["function"]["arguments"]:
@@ -654,21 +654,21 @@ class MCPClient:
                             yield chunk
                 
                 except json.JSONDecodeError:
-                    logger.warning(f"无法解析JSON: {chunk}")
+                    logger.warning(f"Failed to parse JSON: {chunk}")
                     continue
                 except Exception as e:
-                    logger.error(f"处理流数据错误: {str(e)}")
-                    yield json.dumps({"type": "error", "content": f"处理错误: {str(e)}"})
+                    logger.error(f"Error processing stream data: {str(e)}")
+                    yield json.dumps({"type": "error", "content": f"Processing error: {str(e)}"})
         
         except Exception as e:
-            logger.error(f"流处理总体错误: {str(e)}")
-            yield json.dumps({"type": "error", "content": f"处理查询错误: {str(e)}"})
+            logger.error(f"Overall stream processing error: {str(e)}")
+            yield json.dumps({"type": "error", "content": f"Error processing query: {str(e)}"})
         
-        # 确保最后发送完成信号
+        # Ensure the final completion signal is sent
         yield json.dumps({"type": "done"})
 
     def _ensure_serializable(self, obj):
-        """确保对象可以被JSON序列化"""
+        """Ensure the object can be JSON serialized"""
         if obj is None:
             return None
         
@@ -681,13 +681,13 @@ class MCPClient:
         if isinstance(obj, dict):
             return {k: self._ensure_serializable(v) for k, v in obj.items()}
         
-        # 处理MCP特有的类型
+        # Handle MCP specific types
         if hasattr(obj, "__class__"):
             class_name = obj.__class__.__name__
             if class_name == "TextContent" and hasattr(obj, "content"):
                 return obj.content
             
-            # 尝试将对象转换为字典
+            # Attempt to convert the object to a dictionary
             if hasattr(obj, "__dict__"):
                 try:
                     return {k: self._ensure_serializable(v) for k, v in obj.__dict__.items() 
@@ -695,7 +695,7 @@ class MCPClient:
                 except:
                     pass
         
-        # 最后的手段：转换为字符串
+        # Last resort: convert to string
         return str(obj)
 
 # Create a global client instance for use throughout the application
